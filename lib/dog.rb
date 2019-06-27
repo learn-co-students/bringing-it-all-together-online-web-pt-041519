@@ -22,7 +22,7 @@ class Dog
 
   # Drop dogs table
   def self.drop_table
-    sql = "DROP TABLE dogs"
+    sql = "DROP TABLE IF EXISTS dogs"
     DB[:conn].execute(sql)  
   end
 
@@ -51,9 +51,13 @@ class Dog
 
   # Create new dog object from attributes hash, then save
   def self.create(attributes)
-    dog = self.new(name:"#{attributes[:name]}", breed:"#{attributes[:breed]}")
-    # attributes.each {|key, value| self.send(("#{key}="), value)}
+    dog = self.new(attributes)
     dog.save
+  end
+
+  # Create new dog instance with attributes
+  def self.new_from_db(row)
+    self.new(id:row[0], name:row[1], breed:row[2])
   end
 
   # Find dog by id
@@ -64,10 +68,24 @@ class Dog
     self.new_from_db(row)
   end	
 
+  # Find dog by name
+  def self.find_by_name(name)
+    sql = "SELECT * FROM dogs WHERE name = ? LIMIT 1"
+    row = DB[:conn].execute(sql, name).first
+    self.new_from_db(row)
+  end	
+
   # Find dog or create new by name and breed; return dog
   def self.find_or_create_by(name:, breed:)
+    sql = <<-SQL
+          SELECT * 
+          FROM dogs 
+          WHERE name = ? 
+          AND breed = ? 
+          LIMIT 1
+        SQL
 
-    dog = DB[:conn].execute("SELECT * FROM dogs WHERE name = ? AND breed = ?", name, breed)
+    dog = DB[:conn].execute(sql,name, breed)
     
     # If dog isn't empty, create new object from database
     if !dog.empty?
@@ -78,18 +96,5 @@ class Dog
     end
     return dog
   end
-
-  # Create new dog instance with attributes
-  def self.new_from_db(row)
-    dog = self.new(id:row[0], name:row[1], breed:row[2])
-    return dog
-  end
-
-  # Find dog by name
-  def self.find_by_name(name)
-    sql = "SELECT * FROM dogs WHERE name = ?"
-    row = DB[:conn].execute(sql, name).first
-    self.new_from_db(row)
-  end	
 
 end
